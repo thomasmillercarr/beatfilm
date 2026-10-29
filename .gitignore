@@ -1,0 +1,5 @@
+out/
+films/
+**/audio/source.mp3
+.impeccable/
+node_modules/

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kairo launch film</title>
+<style>
+  @font-face { font-family: 'Bricolage'; src: url(fonts/Bricolage.ttf); font-weight: 200 800; font-stretch: 75% 100%; }
+  @font-face { font-family: 'Newsreader'; src: url(fonts/Newsreader-Italic.ttf); font-style: italic; font-weight: 200 800; }
+  @font-face { font-family: 'JetBrains Mono'; src: url(fonts/JetBrainsMono.ttf); font-weight: 100 800; }
+  :root { --ink: #121117; --ink2: #1d1b25; --paper: #f2eee5; --line: #d9d3c6; --accent: #ff5b23; --violet: #7b6cff; --mute: #3a3746; }
+  html, body { margin: 0; background: var(--ink); }
+  #stage { background: var(--ink); color: var(--paper); font-family: 'Bricolage', sans-serif; }
+  .scene { position: absolute; inset: 0; visibility: hidden; overflow: hidden; }
+  .dark { background: radial-gradient(120% 90% at 50% 40%, #1f1c29 0%, var(--ink) 70%); }
+  .light { background: var(--paper); color: var(--ink); }
+  .serif { font-family: 'Newsreader', serif; font-style: italic; font-weight: 400; letter-spacing: -0.01em; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .abs { position: absolute; }
+
+  /* hook */
+  .word { position: absolute; left: 0; right: 0; top: 50%; text-align: center; font-weight: 800; font-size: 230px; letter-spacing: -0.055em; line-height: 1; transform-origin: 50% 60%; white-space: nowrap; }
+  .word .o { color: var(--accent); }
+  .stamp { left: 72px; top: 60px; font-size: 26px; letter-spacing: 0.08em; color: #8d889c; }
+  .stamp b { color: var(--paper); font-weight: 600; }
+
+  /* calendar */
+  .cal { position: absolute; left: 230px; top: 150px; width: 1460px; height: 860px; transform-origin: 50% 50%; }
+  .day { position: absolute; top: 0; height: 40px; font-size: 22px; font-weight: 600; letter-spacing: 0.12em; }
+  .rule { position: absolute; left: 0; right: 0; height: 1px; }
+  .hour { position: absolute; left: -84px; width: 64px; text-align: right; font-size: 18px; }
+  .blk { position: absolute; border-radius: 14px; padding: 12px 16px; box-sizing: border-box; font-size: 21px; font-weight: 600; line-height: 1.15; overflow: hidden; transform-origin: 50% 50%; }
+  .blk small { display: block; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; opacity: 0.7; margin-top: 4px; }
+  .chaos .rule { background: #2e2b38; } .chaos .day, .chaos .hour { color: #8f8a9f; }
+  .chaos .blk { background: #2b2836; color: #cfc9dc; border: 1.5px solid #3d394b; }
+  .chaos .blk.v { background: #3a2f6e; border-color: #5a4bb0; color: #e3ddff; }
+  .chaos .blk .bang { position: absolute; right: 10px; top: 10px; width: 26px; height: 26px; border-radius: 50%; background: #ff3b3b; color: #fff; font: 800 18px/26px 'Bricolage'; text-align: center; }
+  .plan .rule { background: var(--line); } .plan .day, .plan .hour { color: #8a8478; }
+  .plan .blk { color: #fff; }
+  .plan .blk.f { background: var(--accent); }
+  .plan .blk.m { background: var(--violet); }
+  .plan .blk.f::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.0) 0 14px, rgba(255,255,255,.09) 14px 28px); }
+
+  /* logo */
+  .logo { font-weight: 800; letter-spacing: -0.06em; line-height: 1; white-space: nowrap; }
+  .logo i { font-style: normal; color: var(--accent); }
+  .tag { font-size: 64px; color: #bdb7c9; white-space: nowrap; }
+
+  /* captions */
+  .cap { left: 120px; font-weight: 800; font-size: 112px; letter-spacing: -0.045em; line-height: 0.98; white-space: nowrap; }
+  .cap .serif { font-size: 1.12em; }
+  .counter { right: 120px; top: 76px; text-align: right; font-size: 22px; letter-spacing: 0.1em; color: #8a8478; }
+  .counter b { display: block; font-family: 'Bricolage'; font-size: 88px; letter-spacing: -0.04em; color: var(--ink); font-weight: 800; }
+  .counter b em { font-style: normal; color: var(--accent); }
+
+  /* cards */
+  .card { position: absolute; left: 900px; top: 300px; width: 900px; height: 400px; border-radius: 34px; background: #fff; color: var(--ink); box-shadow: 0 40px 80px -30px rgba(30,20,10,.35), 0 0 0 1px rgba(0,0,0,.05); padding: 52px 56px; box-sizing: border-box; transform-origin: 50% 100%; }
+  .card .k { font-family: 'JetBrains Mono'; font-size: 24px; letter-spacing: 0.12em; color: var(--accent); font-weight: 600; }
+  .card .h { font-size: 62px; font-weight: 700; letter-spacing: -0.03em; margin-top: 18px; line-height: 1.12; }
+  .card .s { font-size: 30px; color: #7d776c; margin-top: 14px; }
+  .card svg { position: absolute; right: 52px; top: 48px; width: 84px; height: 84px; }
+  .req { position: absolute; width: 300px; height: 92px; border-radius: 14px; background: var(--violet); color: #fff; font-size: 22px; font-weight: 600; padding: 14px 18px; box-sizing: border-box; box-shadow: 0 20px 40px -20px rgba(60,40,160,.6); }
+  .req small { display: block; font-family: 'JetBrains Mono'; font-size: 15px; opacity: .75; margin-top: 4px; }
+  .shield { position: absolute; border-radius: 22px; border: 4px solid var(--accent); box-sizing: border-box; }
+
+  /* stats */
+  .stat { position: absolute; left: 0; right: 0; top: 50%; text-align: center; }
+  .stat .n { font-weight: 800; font-size: 340px; letter-spacing: -0.06em; line-height: 0.9; }
+  .stat .l { font-size: 34px; letter-spacing: 0.14em; color: #8d889c; font-family: 'JetBrains Mono'; margin-top: 20px; }
+
+  .cta { font-size: 44px; font-weight: 600; padding: 28px 54px; border-radius: 999px; background: var(--accent); color: #fff; white-space: nowrap; }
+  #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 900; opacity: 0; }
+  #vig { position: absolute; inset: 0; pointer-events: none; z-index: 800; background: radial-gradient(130% 100% at 50% 50%, transparent 55%, rgba(0,0,0,.45) 100%); }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1. HOOK: the Monday problem, one word per beat -->
+  <section class="scene dark" id="hook">
+    <div class="abs stamp mono">MON <b id="clock">08:59</b> &nbsp;·&nbsp; WEEK 43</div>
+    <div class="word" id="w0">Monday.</div>
+    <div class="word" id="w1"><span id="n37">37</span> unread.</div>
+    <div class="word" id="w2">9 meetings.</div>
+    <div class="word" id="w3"><span class="o">0</span> hours to think.</div>
+  </section>
+
+  <!-- 2. CHAOS: the week fills up by itself -->
+  <section class="scene dark" id="chaos">
+    <div class="cal chaos" id="calC"></div>
+    <div class="abs" id="scrim" style="inset:0;background:linear-gradient(90deg, rgba(18,17,23,.92) 0%, rgba(18,17,23,.75) 55%, rgba(18,17,23,0) 85%)"></div>
+    <div class="abs cap" id="c1" style="top:350px;color:var(--paper);font-size:132px">Planned by everyone</div>
+    <div class="abs cap" id="c2" style="top:500px;color:var(--accent);font-size:150px;transform-origin:0 50%"><span class="serif">but you.</span></div>
+  </section>
+
+  <!-- 3. DROP: logo slam -->
+  <section class="scene dark" id="drop">
+    <div class="center abs" style="inset:0;display:grid;place-items:center">
+      <div style="text-align:center">
+        <div class="logo" id="logo" style="font-size:300px">kair<i>o</i></div>
+        <div class="tag serif" id="tag" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. PLAN: the week assembles itself -->
+  <section class="scene light" id="plan">
+    <div class="cal plan" id="calP"></div>
+    <div class="abs counter mono" id="cnt">FOCUS THIS WEEK<b><span id="fh">0</span><em>h</em></b></div>
+  </section>
+
+  <!-- 5. PROTECT: requests bounce off focus -->
+  <section class="scene light" id="protect">
+    <div class="abs cap" style="top:140px" id="pc">It guards your <span class="serif" style="color:var(--accent)">focus.</span></div>
+    <div class="abs blk" id="pf" style="left:700px;top:470px;width:520px;height:300px;background:var(--accent);color:#fff;font-size:40px;padding:30px 36px;border-radius:24px">Deep work<small style="font-size:22px">WED · 09:00 – 12:00</small></div>
+    <div class="shield" id="sh" style="left:684px;top:454px;width:552px;height:332px"></div>
+    <div class="req" id="r0">Quick sync?<small>WED 10:00</small></div>
+    <div class="req" id="r1">Can we chat?<small>WED 10:30</small></div>
+    <div class="req" id="r2">Roadmap alignment<small>WED 11:00</small></div>
+  </section>
+
+  <!-- 6. FEATURES: three cards, one per bar -->
+  <section class="scene light" id="feat">
+    <div class="abs cap" id="fc0" style="top:360px;font-size:150px">Moves<br><span class="serif">meetings.</span></div>
+    <div class="abs cap" id="fc1" style="top:360px;font-size:150px">Finds<br><span class="serif">the time.</span></div>
+    <div class="abs cap" id="fc2" style="top:360px;font-size:150px">Says no<br><span class="serif">for you.</span></div>
+    <div class="card" id="k0"><div class="k">RESCHEDULED</div><div class="h">1:1 with Sam →<br>Thu 10:00</div><div class="s">Both of you were free. Nobody had to ask.</div>
+      <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#1dbf73"/><path class="tick" d="M18 33 l9 9 l19 -20" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg></div>
+    <div class="card" id="k1"><div class="k">FOUND 45 MIN</div><div class="h">"Q3 deck" before<br>your 2pm</div><div class="s">Booked as deep work. Notifications off.</div>
+      <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#ff5b23"/><path class="tick" d="M32 16 v16 l10 7" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg></div>
+    <div class="card" id="k2"><div class="k">DECLINED POLITELY</div><div class="h">"Brainstorm?" Fri 9:00</div><div class="s">"Ana's heads-down. Thursday 3pm works."</div>
+      <svg width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#7b6cff"/><path class="tick" d="M21 21 l22 22 M43 21 l-22 22" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1"/></svg></div>
+  </section>
+
+  <!-- 7a. STATS: one number per two beats -->
+  <section class="scene dark" id="stats">
+    <div class="stat" id="st0"><div class="n">+<span id="sn0">0</span>h</div><div class="l">FOCUS TIME / WEEK</div></div>
+    <div class="stat" id="st1"><div class="n" style="color:var(--violet)">−<span id="sn1">0</span></div><div class="l">MEETINGS YOU DIDN'T NEED</div></div>
+    <div class="stat" id="st2"><div class="n" style="color:var(--accent)"><span id="sn2">0</span></div><div class="l">DOUBLE-BOOKINGS</div></div>
+  </section>
+
+  <!-- 7b. PAYOFF + LOCKUP -->
+  <section class="scene light" id="end">
+    <div class="cal plan" id="calE"></div>
+    <div class="abs" id="veil" style="inset:0;background:var(--paper)"></div>
+    <div class="abs cap" id="gb" style="left:0;right:0;top:330px;text-align:center;font-size:150px">Get your week <span class="serif" style="color:var(--accent)">back.</span></div>
+    <div class="abs" id="lock" style="left:0;right:0;top:250px;text-align:center">
+      <div class="logo" id="logo2" style="font-size:300px;color:var(--ink)">kair<i>o</i></div>
+      <div style="display:flex;justify-content:center;gap:28px;align-items:center;margin-top:40px">
+        <div class="cta" id="cta">Join the early access</div>
+        <div class="mono" style="font-size:38px;color:#8a8478" id="url">kairo.app</div>
+      </div>
+    </div>
+  </section>
+
+  <div id="vig"></div>
+  <div id="flash"></div>
+</div>
+<script src="bf.js"></script>
+<script>
+const { set, map, kf, $, $$, clamp, lerp, ease, rng, shake, mblur } = BF;
+
+// --- calendar layout helpers (5 days x 08:00-18:00) ---
+const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI'], COLW = 292, ROWH = 80, TOP = 50;
+function grid(el) {
+  DAYS.forEach((d, i) => el.insertAdjacentHTML('beforeend', `<div class="day" style="left:${i * COLW + 6}px">${d}</div>`));
+  for (let h = 0; h <= 10; h++) el.insertAdjacentHTML('beforeend', `<div class="rule" style="top:${TOP + h * ROWH}px"></div>` + (h < 10 ? `<div class="hour mono" style="top:${TOP + h * ROWH - 10}px">${String(8 + h).padStart(2, '0')}:00</div>` : ''));
+}
+function block(el, { day, start, len, title, cls = '', sub }) {
+  const d = document.createElement('div');
+  d.className = 'blk ' + cls;
+  Object.assign(d.style, { left: day * COLW + 4 + 'px', top: TOP + (start - 8) * ROWH + 3 + 'px', width: COLW - 8 + 'px', height: len * ROWH - 6 + 'px' });
+  const hh = x => `${String(Math.floor(x)).padStart(2, '0')}:${x % 1 ? '30' : '00'}`;
+  d.innerHTML = `${title}${len >= 0.75 ? `<small>${sub || hh(start) + ' – ' + hh(start + len)}</small>` : ''}`;
+  el.append(d); return d;
+}
+
+BF.film({
+  width: 1920, height: 1080, fps: 30,
+  audio: 'audio/cut.m4a', beats: 'beats.json',
+  fonts: ['800 100px "Bricolage"', '600 40px "Bricolage"', 'italic 400 100px "Newsreader"', '500 20px "JetBrains Mono"'],
+  setup(B) {
+    const b = i => B.t(i), bar = n => B.bar(n), beat = B.beat; // beat = 0.5 s here; everything is written in beats/bars
+    const grainFx = BF.grain(0.05, 2);
+
+    // ---- chaos blocks: seeded, overlapping, landing on 16th notes, accelerating into the drop ----
+    const calC = $('#calC'); grid(calC);
+    const TITLES = ['Sync', 'Quick catch-up', 'Standup', 'Weekly review', 'Can we chat?', '1:1', 'Planning', 'Alignment', 'Roadmap', 'All hands', 'Retro', 'Coffee?', 'Status update', 'Brainstorm', 'Kickoff', 'Follow-up'];
+    const r = rng(43), chaos = [];
+    for (let i = 0; i < 38; i++) {
+      const len = [0.5, 1, 1, 1.5, 2][Math.floor(r() * 5)], start = 8 + Math.floor(r() * (20 - len * 2)) / 2;
+      const el = block(calC, { day: Math.floor(r() * 5), start, len, title: TITLES[Math.floor(r() * TITLES.length)], cls: r() < 0.35 ? 'v' : '' });
+      if (r() < 0.4) el.insertAdjacentHTML('beforeend', '<div class="bang">!</div>');
+      const at = bar(2) + Math.round(Math.sqrt(i / 38) * 3.6 / beat * 4) * beat / 4; // 16th-quantised, faster as it builds
+      chaos.push({ el, at, rot: (r() - 0.5) * 6, seed: i });
+    }
+
+    // ---- plan blocks: the tidy week; two per beat ----
+    const PLAN = [
+      [0, 9, 2, 'Deep work', 'f'], [1, 9, 3, 'Deep work', 'f'], [2, 9, 3, 'Deep work', 'f'], [4, 9, 2, 'Deep work', 'f'],
+      [0, 11.5, 0.5, 'Standup', 'm'], [3, 10, 0.5, '1:1 · Sam', 'm'], [1, 14, 1, 'Planning', 'm'], [3, 14, 1, 'Design review', 'm'],
+      [2, 13, 2, 'Deep work', 'f'], [3, 15.5, 2, 'Deep work', 'f'], [0, 14, 0.5, '1:1 · Ana', 'm'], [4, 15, 1, 'Retro', 'm'],
+      [0, 15, 1.5, 'Customer calls', 'm'], [1, 15.5, 2, 'Deep work', 'f'], [4, 11.5, 1, 'Lunch & learn', 'm'], [0, 16.5, 1.5, 'Deep work', 'f'],
+    ];
+    const mk = cal => { grid(cal); return PLAN.map(([day, start, len, title, cls], i) => ({ el: block(cal, { day, start, len, title, cls }), i, day, start, len, f: cls === 'f' })); };
+    const plan = mk($('#calP')), endCal = mk($('#calE'));
+    const focusTotal = PLAN.filter(p => p[4] === 'f').reduce((a, p) => a + p[2], 0);
+
+    const tagWords = BF.split(Object.assign($('#tag'), { textContent: 'the calendar that plans your week.' }), 'words');
+    const logoChars = BF.split('#logo'), gbWords = $$('#gb > *, #gb').length && null;
+
+    // ---- scene table on the bar grid (bars are 4 beats) ----
+    const S = {
+      hook: [0, bar(2)], chaos: [bar(2), bar(4)], drop: [bar(4), bar(5)], plan: [bar(5), bar(7)], protect: [bar(7), bar(8)],
+      feat: [bar(8), bar(11)], stats: [bar(11), bar(12)], end: [bar(12), B.duration],
+    };
+    const lt = (t, k) => t - S[k][0];
+
+    // global accents: the drop, the two measured hits, the final out-hit
+    const flashes = [[bar(4), 1, 7], [bar(8), 0.55, 9], [B.out, 0.7, 7], ...B.hits.filter(h => h > 0.5 && Math.abs(h - bar(8)) > 0.2).map(h => [h, 0.25, 12])];
+
+    const draw = {
+      hook(t) {
+        // a word per bar-half (2 beats); hard cut in with a short slide and overshoot, punch on each beat
+        const idx = clamp(Math.floor(t / (2 * beat)), 0, 3);
+        ['#w0', '#w1', '#w2', '#w3'].forEach((s, i) => {
+          if (i !== idx) return set(s, { o: 0 });
+          const l = t - i * 2 * beat, u = ease.outExpo(clamp(l / 0.35));
+          const sh = i === 2 ? shake(t, 14 * B.pulse(t, 10, [b(4)]), 24, 3) : { x: 0, y: 0, r: 0 };
+          set(s, { o: 1, y: -115 + (1 - u) * 90 + sh.y, x: sh.x, r: sh.r, s: 1.04 - 0.04 * u + 0.03 * B.pulse(t, 9), blur: (1 - u) * 10 });
+        });
+        $('#n37').textContent = Math.round(map(t, 2 * beat, 2 * beat + 0.4, 0, 37, 'outCubic'));
+        const m = Math.floor(map(t, 0, bar(2), 59, 59 + 4)); $('#clock').textContent = `${m >= 60 ? '09' : '08'}:${String(m % 60).padStart(2, '0')}`;
+      },
+      chaos(t, T) {
+        const l = lt(T, 'chaos'), dur = S.chaos[1] - S.chaos[0], build = l / dur;
+        const cam = { s: 1 + 0.22 * ease.inCubic(build), r: -1.5 * build };
+        const crush = ease.inExpo(clamp((T - (S.chaos[1] - beat)) / beat)); // the last beat sucks everything toward centre
+        set('#calC', { s: cam.s * (1 - 0.35 * crush), r: cam.r, blur: crush * 14 });
+        for (const c of chaos) {
+          const u = clamp((T - c.at) / 0.22);
+          if (u <= 0) { set(c.el, { o: 0 }); continue; }
+          const sh = shake(T, 1 + 7 * build * build, 16, c.seed);
+          set(c.el, { o: 1, y: (1 - ease.outBack(u)) * -60 + sh.y, x: sh.x, r: c.rot * build + sh.r, s: 0.9 + 0.1 * ease.outBack(u) });
+        }
+        // captions on the 3rd and 4th bar downbeats of the build... "Planned by everyone" / "but you."
+        const a = map(T, bar(3), bar(3) + 0.3, 0, 1, 'outExpo'), c2 = map(T, bar(3) + 2 * beat, bar(3) + 2 * beat + 0.25, 0, 1, 'outBack');
+        set('#scrim', { o: a * (1 - crush) });
+        set('#c1', { o: a * (1 - crush), x: (1 - a) * -80 });
+        set('#c2', { o: clamp(c2 * 2) * (1 - crush), s: 0.7 + 0.3 * c2, x: 0 });
+      },
+      drop(t, T) {
+        const l = lt(T, 'drop');
+        logoChars.forEach((c, i) => { const u = clamp((l - i * 0.03) / 0.5); set(c, { y: (1 - ease.outBack(u)) * 160, o: clamp(u * 3), s: 1.35 - 0.35 * ease.outExpo(u) }); });
+        set('#logo', { s: 1 + 0.025 * B.pulse(T, 7) });
+        tagWords.forEach((w, i) => { const at = beat + i * 0.1, u = clamp((l - at) / 0.3); set(w, { o: ease.outCubic(u), y: (1 - ease.outExpo(u)) * 40 }); });
+      },
+      plan(t, T) {
+        const l = lt(T, 'plan');
+        const camS = kf(l, [[0, 1.12], [bar(2) - beat * 2, 1, 'outCubic']]);
+        set('#calP', { s: camS, y: (camS - 1) * -200 });
+        let focus = 0;
+        plan.forEach(p => {
+          const at = Math.floor(p.i / 2) * beat, u = clamp((l - at) / 0.3);  // two blocks land on every beat
+          const v = ease.outBack(u), from = p.i % 2 ? 1 : -1;
+          set(p.el, { o: clamp(u * 4), x: (1 - v) * 220 * from, y: (1 - v) * 40, s: 0.85 + 0.15 * v });
+          mblur(p.el, (1 - u) * 26 * (u > 0 && u < 1), 0);
+          if (u >= 1 && p.f) focus += p.len;
+        });
+        $('#fh').textContent = Math.round(lerp(+$('#fh').dataset.v || 0, focus, 1)); $('#fh').dataset.v = focus;
+        set('#cnt', { s: 1 + 0.06 * B.pulse(T, 10) });
+      },
+      protect(t, T) {
+        const l = lt(T, 'protect');
+        const ci = map(l, 0, 0.35, 0, 1, 'outExpo'); set('#pc', { o: ci, y: (1 - ci) * 40 });
+        // a request flies at the block on each beat and bounces off the shield
+        const from = [[-320, 380], [1940, 560], [-320, 760]], hitAt = [1, 2, 3].map(k => k * beat);
+        let shieldP = 0;
+        ['#r0', '#r1', '#r2'].forEach((s, i) => {
+          const [fx, fy] = from[i], tx = fx < 0 ? 380 : 1240, ty = fy;
+          const k = l - hitAt[i] + 0.35; // arrive exactly on the beat
+          if (k < 0) return set(s, { o: 0 });
+          const inU = clamp(k / 0.35), out = clamp((k - 0.35) / 0.4);
+          const x = k < 0.35 ? lerp(fx, tx, ease.inQuad(inU)) : lerp(tx, fx < 0 ? -340 : 1960, ease.inCubic(out));
+          const y = k < 0.35 ? fy : fy - 160 * Math.sin(out * Math.PI * 0.8);
+          set(s, { o: 1, x, y, r: k < 0.35 ? 0 : (fx < 0 ? -1 : 1) * 40 * out });
+          mblur(s, k < 0.35 ? 18 * inU : 10, 0);
+          shieldP = Math.max(shieldP, B.pulse(l, 7, [hitAt[i]]));
+        });
+        const sh = shake(T, 10 * shieldP, 30, 9);
+        set('#pf', { x: sh.x, y: sh.y });
+        set('#sh', { o: 0.25 + 0.75 * shieldP, s: 1 + 0.06 * shieldP, x: sh.x, y: sh.y });
+      },
+      feat(t, T) {
+        const l = lt(T, 'feat'), idx = clamp(Math.floor(l / bar(1)), 0, 2);
+        [0, 1, 2].forEach(i => {
+          const on = i === idx, k = l - i * bar(1);
+          if (!on) { set('#fc' + i, { o: 0 }); set('#k' + i, { o: 0 }); return; }
+          const u = clamp(k / 0.5), sp = ease.spring(clamp(k / 0.9), 11, 0.42);
+          const out = clamp((k - (bar(1) - 0.18)) / 0.18); // quick exit before the next downbeat
+          set('#fc' + i, { o: clamp(u * 3) * (1 - out), y: (1 - ease.outExpo(u)) * 60 - out * 60 });
+          set('#k' + i, { o: clamp(u * 4) * (1 - out), y: (1 - sp) * 260 - out * 120, rx: (1 - sp) * -18, r: (1 - sp) * 3, s: 0.94 + 0.06 * sp + 0.012 * B.pulse(T, 8) });
+          $('#k' + i + ' .tick').style.strokeDashoffset = 1 - map(k, 2 * beat, 2 * beat + 0.45, 0, 1, 'outCubic');
+        });
+      },
+      stats(t, T) {
+        const l = lt(T, 'stats'), idx = clamp(Math.floor(l / (beat * 4 / 3)), 0, 2), vals = [focusTotal, 9, 0];
+        [0, 1, 2].forEach(i => {
+          if (i !== idx) return set('#st' + i, { o: 0 });
+          const k = l - i * beat * 4 / 3, u = ease.outExpo(clamp(k / 0.3));
+          set('#st' + i, { o: 1, y: -230 + (1 - u) * 80, s: 1.08 - 0.08 * u + 0.03 * B.pulse(T, 10) });
+          $('#sn' + i).textContent = Math.round(map(k, 0, 0.45, i === 2 ? 12 : 0, vals[i], 'outCubic'));
+        });
+      },
+      end(t, T) {
+        const l = lt(T, 'end');
+        // pull out over the finished week, then cover with paper for the lockup
+        const z = kf(l, [[0, 1.6], [bar(1) + 2 * beat, 0.86, 'inOutCubic']]);
+        set('#calE', { s: z, r: kf(l, [[0, -3], [bar(1) + 2 * beat, 0, 'outCubic']]), rx: kf(l, [[0, 20], [bar(1), 0, 'outCubic']]) });
+        endCal.forEach(p => set(p.el, { o: 1, s: 1 + 0.03 * B.pulse(T, 9) * (p.f ? 1 : 0) }));
+        const veil = map(l, bar(1) - beat, bar(1) + beat, 0, 0.88, 'inOutCubic');
+        set('#veil', { o: veil });
+        const g = map(l, bar(1) - beat, bar(1) + beat * 0.5, 0, 1, 'outExpo'), gOut = map(l, bar(2) - beat * 0.5, bar(2), 0, 1, 'inCubic');
+        set('#gb', { o: g * (1 - gOut), y: (1 - g) * 50, s: 1 - 0.1 * gOut });
+        const lk = map(l, bar(2), bar(2) + 0.45, 0, 1, 'outBack');
+        set('#lock', { o: clamp(lk * 3), y: (1 - lk) * 60, s: 0.92 + 0.08 * lk });
+        set('#veil', { o: Math.max(veil, l > bar(2) ? 1 : 0) });
+        set('#cta', { s: 1 + 0.05 * B.pulse(T, 8, B.beats.filter(x => x >= S.end[0] + bar(2) + 2 * beat)) + 0.08 * B.pulse(T, 6, [B.out]) });
+        const fade = map(T, B.out + 0.2, B.duration, 0, 1, 'inQuad');
+        set('#lock', { o: clamp(lk * 3) * (1 - fade * 0.0) });
+      },
+    };
+
+    return (T, f) => {
+      for (const k in S) {
+        const on = T >= S[k][0] && T < S[k][1];
+        $('#' + k).style.visibility = on ? 'visible' : 'hidden';
+        if (on) draw[k](T - S[k][0], T);
+      }
+      let fl = 0; for (const [at, amt, dec] of flashes) if (T >= at) fl = Math.max(fl, amt * Math.exp(-(T - at) * dec));
+      set('#flash', { o: fl });
+      $('#vig').style.opacity = T < S.plan[0] || (T >= S.stats[0] && T < S.end[0]) ? 1 : 0.35;
+      grainFx(f);
+    };
+  },
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Film</title>
+<style>
+  /* Fonts are local files in fonts/ (no network at render time). Pair a display face with a text face. */
+  /* @font-face { font-family: Display; src: url(fonts/Display.ttf); font-weight: 100 900; } */
+  :root { --bg: #0b0b0f; --ink: #f4f1ea; --accent: #ff4d2e; }
+  html, body { margin: 0; background: var(--bg); }
+  #stage { background: var(--bg); color: var(--ink); font-family: system-ui, sans-serif; }
+  .scene { position: absolute; inset: 0; visibility: hidden; }
+  .center { position: absolute; inset: 0; display: grid; place-items: center; }
+  h1 { margin: 0; font-size: 160px; font-weight: 800; letter-spacing: -0.04em; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <section class="scene" id="s1"><div class="center"><h1 id="title">Your film</h1></div></section>
+  <section class="scene" id="s2"><div class="center"><h1 style="color:var(--accent)">cut to the beat</h1></div></section>
+</div>
+<script src="bf.js"></script>
+<script>
+  const { set, map, $ } = BF;
+  BF.film({
+    width: 1920, height: 1080, fps: 30,
+    audio: 'audio/cut.m4a',   // written by scripts/beats.mjs together with beats.json; t=0 is the cut's first downbeat
+    beats: 'beats.json',
+    fonts: [],                // e.g. ['800 100px Display'] so the render waits for them
+    setup(B) {
+      const title = BF.split('#title');
+      // scenes on the bar grid: [t0, t1) seconds, draw(local t, global t, frame)
+      const scenes = [
+        { el: $('#s1'), t0: 0, t1: B.bar(2), draw(lt) {
+          title.forEach((c, i) => { const u = map(lt, i * 0.04, i * 0.04 + 0.6, 0, 1, 'outExpo'); set(c, { y: (1 - u) * 120, o: u }); });
+        } },
+        { el: $('#s2'), t0: B.bar(2), t1: B.duration, draw(lt, t) {
+          set('#s2 h1', { s: 1 + 0.06 * B.pulse(t, 6) }); // punch on every beat
+        } },
+      ];
+      return (t, f) => {
+        for (const s of scenes) { const on = t >= s.t0 && t < s.t1; s.el.style.visibility = on ? 'visible' : 'hidden'; if (on) s.draw(t - s.t0, t, f); }
+      };
+    },
+  });
+</script>
+</body>
+</html>
