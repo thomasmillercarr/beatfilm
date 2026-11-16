@@ -1,5 +1,7 @@
 # Kairo launch film: plan
 
+> Kairo is a fictional brand made up for this example.
+
 **Brief:** "Kairo is a calendar app that plans your week for you: it schedules deep work, moves meetings
 and declines what doesn't fit. Launching early access. Make a 30 s launch film."
 

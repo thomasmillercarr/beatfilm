@@ -63,7 +63,8 @@ if (cmd === 'bundle') {
 function serve(port = 0) {
   return new Promise(res => {
     const srv = createServer((req, rsp) => {
-      const p = resolve(DIR, '.' + decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/\/$/, '/index.html'));
+      let p; try { p = resolve(DIR, '.' + decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/\/$/, '/index.html')); }
+      catch { rsp.writeHead(400); return rsp.end(); }
       if (!p.startsWith(DIR + sep) && p !== DIR || !existsSync(p) || statSync(p).isDirectory()) { rsp.writeHead(404); return rsp.end(); }
       rsp.writeHead(200, { 'content-type': MIME[extname(p).toLowerCase()] || 'application/octet-stream', 'cache-control': 'no-store' });
       createReadStream(p).pipe(rsp);
@@ -86,12 +87,16 @@ function findChrome() {
   return c.find(p => p && existsSync(p)) || die('Chrome not found; set CHROME_PATH');
 }
 const CHROME = findChrome();
+// every Chrome we start is killed and its temp profile removed on exit, however we exit
+const kids = new Set(), closing = new Set();
+process.on('exit', () => { for (const k of kids) { try { k.proc.kill(); } catch {} try { rmSync(k.prof, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch {} } });
 
 async function launch() {
   const prof = mkdtempSync(join(tmpdir(), 'bf-chrome-'));
   const proc = spawn(CHROME, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${prof}`, '--no-first-run', '--no-default-browser-check',
     '--hide-scrollbars', '--mute-audio', '--force-color-profile=srgb', '--disable-background-timer-throttling', '--disable-renderer-backgrounding',
-    '--disable-backgrounding-occluded-windows', '--disable-extensions', '--autoplay-policy=no-user-gesture-required', ...(opt('gpu') === 'off' ? ['--disable-gpu'] : []), 'about:blank'], { stdio: 'ignore' });
+    '--disable-backgrounding-occluded-windows', '--disable-extensions', '--autoplay-policy=no-user-gesture-required', ...(opt('gpu') === 'off' ? ['--disable-gpu'] : []), ...(process.env.CHROME_FLAGS || '').split(/\s+/).filter(Boolean), 'about:blank'], { stdio: 'ignore' });
+  const kid = { proc, prof }; kids.add(kid);
   const portFile = join(prof, 'DevToolsActivePort');
   let port; // Chrome holds the file locked while writing it (EBUSY on Windows): keep polling
   for (let i = 0; !port; i++) {
@@ -108,9 +113,20 @@ async function launch() {
     if (m.id) { const p = pend.get(m.id); pend.delete(m.id); m.error ? p.j(new Error(m.error.message)) : p.r(m.result); }
     else (subs.get(m.method) || []).forEach(f => f(m.params));
   };
-  const send = (method, params = {}) => new Promise((r, j) => { pend.set(++id, { r, j }); ws.send(JSON.stringify({ id, method, params })); });
+  // a crashed or exited Chrome must fail pending calls, not hang the render forever
+  let dead = null;
+  const fail = e => { dead = dead || e; for (const p of pend.values()) p.j(e); pend.clear(); };
+  ws.onclose = () => fail(new Error('Chrome connection closed'));
+  proc.on('exit', c => fail(new Error('Chrome exited ' + c)));
+  const send = (method, params = {}) => dead ? Promise.reject(dead) : new Promise((r, j) => { pend.set(++id, { r, j }); ws.send(JSON.stringify({ id, method, params })); });
   const on = (ev, f) => subs.set(ev, [...(subs.get(ev) || []), f]);
-  const close = () => { try { ws.close(); } catch {} proc.kill(); setTimeout(() => { try { rmSync(prof, { recursive: true, force: true }); } catch {} }, 500); };
+  on('Inspector.targetCrashed', () => fail(new Error('page crashed (out of memory? on Linux try CHROME_FLAGS=--disable-dev-shm-usage)')));
+  await send('Inspector.enable');
+  // wait for Chrome to exit before removing its profile (Windows keeps the files locked until then)
+  const close = () => { try { ws.close(); } catch {} proc.kill();
+    const p = new Promise(r => { const rm = () => { try { rmSync(prof, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); kids.delete(kid); } catch {} r(); };
+      proc.exitCode !== null || proc.signalCode ? rm() : proc.once('exit', () => setTimeout(rm, 200)); });
+    closing.add(p); return p; };
   return { send, on, close };
 }
 
@@ -148,7 +164,7 @@ async function openFilm(url, scale = 1, probe = null) {
 
 const srv = await serve();
 const URL0 = `http://127.0.0.1:${srv.address().port}/index.html`;
-const done = code => { srv.close(); process.exit(code); };
+const done = async code => { await Promise.race([Promise.all(closing), new Promise(r => setTimeout(r, 5000))]); srv.close(); process.exit(code); };
 
 // probe the page once at scale 1 for its declared size
 const probe = await openFilm(URL0, 1);
@@ -167,7 +183,8 @@ if (cmd === 'check') {
   // static scan of the film's own code (bf.js is the runtime and is exempt)
   const own = readdirSync(DIR).filter(f => /\.(html|js|css)$/.test(f) && f !== 'bf.js');
   for (const f of own) {
-    const src = readFileSync(join(DIR, f), 'utf8');
+    // a runtime pasted inline (chat drafts start it with "// beatfilm runtime") is exempt like bf.js
+    const src = readFileSync(join(DIR, f), 'utf8').replace(/<script>\s*\/\/ beatfilm runtime[\s\S]*?<\/script>/, '');
     for (const [re, why] of [[/Math\.random/, 'Math.random (use BF.rng/BF.hash)'], [/Date\.now|new Date\(/, 'Date'], [/performance\.now/, 'performance.now'],
       [/setTimeout|setInterval/, 'timers'], [/requestAnimationFrame/, 'requestAnimationFrame'], [/<video/i, '<video> (not frame accurate: use an image sequence)']])
       if (re.test(src)) problems.push(`${f}: ${why}: frames must be a pure function of t`);
@@ -210,7 +227,7 @@ if (cmd === 'check') {
   warns.forEach(w => console.log('WARN ' + w));
   problems.forEach(w => console.log('FAIL ' + w));
   console.log(problems.length ? `check failed (${problems.length})` : 'check passed');
-  done(problems.length ? 1 : 0);
+  await done(problems.length ? 1 : 0);
 }
 
 // ---------- stills ----------
@@ -233,13 +250,15 @@ if (cmd === 'stills') {
   const layout = Array.from({ length: cols * rows }, (_, i) => `${(i % cols) * tw}_${Math.floor(i / cols) * th}`).join('|');
   await ff([...inputs, '-filter_complex', `${fch}${pads ? ';' + pads : ''};${all}xstack=inputs=${cols * rows}:layout=${layout}:fill=black`, '-frames:v', '1', '-q:v', '3', join(DIR, 'out', 'sheet.jpg')]);
   console.log(`${files.length} stills -> ${out}\ncontact sheet -> ${join(DIR, 'out', 'sheet.jpg')}`);
-  done(0);
+  await done(0);
 }
 
 // ---------- render ----------
 if (cmd === 'render') {
   const res = opt('res', '4k'), scale = scaleFor(res);
-  const [a, b] = (opt('frames') || `0:${F.frames}`).split(':').map(Number);
+  let [a, b] = (opt('frames') || `0:${F.frames}`).split(':').map(Number);
+  if (!(a >= 0 && b > a)) die('--frames A:B needs 0 <= A < B');
+  b = Math.min(b, F.frames);
   const total = b - a, W = Math.round(F.width * scale / 2) * 2, H = Math.round(F.height * scale / 2) * 2;
   const nw = Math.max(1, Math.min(+opt('workers', Math.min(8, Math.floor(cpus().length / 3))), Math.ceil(total / 30)));
   const tmp = mkdtempSync(join(tmpdir(), 'bf-render-'));
@@ -271,19 +290,21 @@ if (cmd === 'render') {
     });
     return seg;
   }));
-  if (process.exitCode) { rmSync(tmp, { recursive: true, force: true }); done(1); }
+  if (process.exitCode) { rmSync(tmp, { recursive: true, force: true }); await done(1); }
   const list = join(tmp, 'list.txt'); writeFileSync(list, segs.filter(Boolean).map(s => `file '${s.replace(/\\/g, '/')}'`).join('\n'));
   const outDir = join(DIR, 'out'); mkdirSync(outDir, { recursive: true });
   const part = opt('frames') ? '_part' : '', outFile = join(outDir, `film_${res}${part}.mp4`);
   const audio = F.audio && existsSync(join(DIR, F.audio)) ? join(DIR, F.audio) : null;
   const dur = (total / F.fps).toFixed(6);
+  // the music credit (CC BY) travels inside the file
+  const credit = existsSync(join(DIR, 'CREDITS.txt')) ? readFileSync(join(DIR, 'CREDITS.txt'), 'utf8').trim().split(/\r?\n/).slice(0, 2).join(' · ') : '';
   await ff(['-f', 'concat', '-safe', '0', '-i', list, ...(audio ? ['-ss', String(a / F.fps), '-i', audio] : []), '-map', '0:v', ...(audio ? ['-map', '1:a', '-c:a', /\.(m4a|aac)$/i.test(audio) && !a ? 'copy' : 'aac', '-b:a', '256k'] : []),
-    '-c:v', 'copy', '-t', dur, '-movflags', '+faststart', outFile]);
+    ...(credit ? ['-metadata', `comment=${credit}`] : []), '-c:v', 'copy', '-t', dur, '-movflags', '+faststart', outFile]);
   rmSync(tmp, { recursive: true, force: true });
   const [w, h, fr, n] = spawnSync('ffprobe', ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=width,height,r_frame_rate,nb_read_frames', '-of', 'csv=p=0', outFile]).stdout.toString().trim().split(',');
   const hasA = spawnSync('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', outFile]).stdout.toString().trim();
   log(`done in ${((performance.now() - tStart) / 1000).toFixed(1)}s -> ${outFile}  [${w}x${h} ${fr}fps ${n} frames, audio ${hasA || 'none'}]`);
-  if (+n !== total) console.log(`WARN frame count ${n} != ${total}`);
-  done(0);
+  if (+n !== total) console.error(`FAIL frame count ${n} != ${total}`);
+  await done(+n === total ? 0 : 1);
 }
 die('unknown command ' + cmd);

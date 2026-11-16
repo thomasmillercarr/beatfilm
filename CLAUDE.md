@@ -6,8 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **beatfilm**, a Claude skill: brief → motion-design film cut to the beat of real music → 4K MP4. `SKILL.md` is
 the skill itself (the workflow and craft rules Claude follows when making a film); this repo folder is also
-installed as `~/.claude/skills/beatfilm` via a directory junction, so edits here are live in the skill.
-It is a clean-room take on Higgsfield Katana's motion-graphics path; no Higgsfield code is included.
+no longer installed as a personal skill (the junction was removed 2026-11-16); install motion-studio instead.
+The canonical copy now lives in motion-studio (github.com/thomasmillercarr/motion-studio, `skills/beatfilm`),
+which adds creative direction before the build. Keep this repo in sync with it: change beatfilm there first,
+then copy it here. No Higgsfield code, prompts or documents are included.
 
 Requirements: Node ≥ 22 (built-in `WebSocket` and `fetch`), ffmpeg/ffprobe on PATH, Chrome or Edge
 (`CHROME_PATH` overrides discovery). **No npm dependencies, no package.json, by design**: keep it that way.

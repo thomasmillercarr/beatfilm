@@ -1,0 +1,33 @@
+beatfilm
+Copyright 2026 thomasmillercarr.
+
+Everything in this repository is under the MIT License (LICENSE), except the two files below.
+They contain text adapted from Apache-2.0 projects and stay under the Apache License 2.0
+(LICENSES/Apache-2.0.txt):
+
+- references/slop.md
+- references/transitions.md
+
+Changes: the source text was condensed, reordered, merged across files and partly rewritten to
+fit beatfilm's HTML runtime. Some passages stay close to the original wording.
+
+--------------------------------------------------------------------------------
+HyperFrames, https://github.com/heygen-com/hyperframes
+  Copyright 2026 HeyGen, Inc. Licensed under the Apache License 2.0.
+  Used: the motion-doctrine and cut-the-curve skills (seam law, the current, carriers,
+  no idle wobble, stillness before climax), in transitions.md.
+
+--------------------------------------------------------------------------------
+motionmaxxing, https://github.com/Tejashmakwana/motionmaxxing
+  Licensed under the Apache License 2.0. Its NOTICE reads, in the part that applies here:
+    "motionmaxxing: looksmaxxing for motion graphics
+     Made by Tejas Makwana (x.com/makwanatejas170) · github.com/Tejashmakwana/motionmaxxing
+     Lives inside FinalMotion · finalmotion.video"
+  Used: references/slop.md and judgment.md (in slop.md), references/transitions.md (in
+  transitions.md). None of its bundled third-party components are included here.
+
+--------------------------------------------------------------------------------
+Example film assets (examples/kairo/)
+  Music: "Inspired" by Kevin MacLeod (incompetech.com), CC BY 4.0, cut and faded for the example.
+  See CREDITS.txt. Fonts: SIL Open Font License 1.1; see the -OFL.txt files beside them.
+  Kairo is a fictional brand.

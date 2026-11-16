@@ -126,6 +126,9 @@ if (beats.length > 8) {
   }
   if (sd < 0.025) { steady = true; const k0 = Math.ceil(-t0 / per); beats = []; for (let k = k0; t0 + k * per < length; k++) beats.push(t0 + k * per); }
 }
+// unsteady tracking drops beats in quiet passages; B.t(i)/B.bar(n) index this list, so fill the gaps
+if (!steady) { const per = 60 / bpm, f = []; for (let i = 0; i < beats.length; i++) { f.push(beats[i]); const g = (beats[i + 1] ?? beats[i]) - beats[i], n = Math.round(g / per); for (let k = 1; k < n; k++) f.push(beats[i] + g * k / n); }
+  if (f.length > beats.length) console.warn(`unsteady beat tracking: filled ${f.length - beats.length} missing beats. If cuts feel off, rerun with --bpm <catalogue bpm>`); beats = f; }
 const beatLen = steady ? beats[1] - beats[0] : 60 / bpm;
 
 // ---- per-beat features ----
@@ -142,6 +145,7 @@ let phase = opt('phase') != null ? +opt('phase') : (() => {
   return score.indexOf(Math.max(...score));
 })();
 const downIdx = beats.map((_, i) => i).filter(i => i % 4 === phase);
+if (!downIdx.length) { console.error('no beats found: silent or arrhythmic track, or a bad --phase'); process.exit(1); }
 
 // hits: accents louder than the surrounding beats (crashes, stabs, drops), at least one beat apart
 const hits = [];
@@ -169,7 +173,7 @@ if (flag('info') || !dirArg) {
 
 // ---- choose a phrase-aligned window: N bars + a faded tail ----
 const want = +opt('duration', 30), tail = +opt('tail', Math.min(1.5, 2 * beatLen));
-const barLen = 4 * beatLen, nb = Math.max(2, Math.round((want - tail) / barLen));
+const barLen = 4 * beatLen; let nb = Math.max(2, Math.round((want - tail) / barLen));
 const meanE = (a, b) => { const s = energy.slice(a, b); return s.reduce((x, y) => x + y, 0) / (s.length || 1); };
 let startBeat;
 if (opt('start') != null) {
@@ -185,7 +189,9 @@ if (opt('start') != null) {
   });
   startBeat ??= downIdx[0] ?? 0;
 }
-const start = beats[startBeat], out = nb * barLen, duration = Math.min(out + tail, length - start);
+const start = beats[startBeat];
+if (start + nb * barLen + tail > length) { nb = Math.max(1, Math.floor((length - start - tail) / barLen)); console.warn(`track too short for --duration ${want}: cutting ${nb} bars`); }
+const out = nb * barLen, duration = Math.min(out + tail, length - start);
 const rel = t => r3(t - start), inWin = t => t >= start - 1e-6 && t < start + duration;
 const winBeats = beats.map((t, i) => i).filter(i => inWin(beats[i]));
 const phrases = [];

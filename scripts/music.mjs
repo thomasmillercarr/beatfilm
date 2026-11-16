@@ -16,10 +16,10 @@ const words = rest.filter((a, i) => !a.startsWith('--') && !(i && rest[i - 1].st
 async function catalogue() {
   const cache = join(tmpdir(), 'beatfilm-incompetech.json');
   if (existsSync(cache)) return JSON.parse(readFileSync(cache, 'utf8'));
-  const r = await fetch(BASE + 'pieces.json'); if (!r.ok) throw new Error('catalogue fetch failed: ' + r.status);
-  const txt = await r.text(); writeFileSync(cache, txt); return JSON.parse(txt);
+  const r = await fetch(BASE + 'pieces.json', { signal: AbortSignal.timeout(30000) }); if (!r.ok) throw new Error('catalogue fetch failed: ' + r.status);
+  const txt = await r.text(), j = JSON.parse(txt); writeFileSync(cache, txt); return j; // parse before caching: never cache an error page
 }
-const secs = l => l.split(':').reduce((a, x) => a * 60 + +x, 0);
+const secs = l => String(l || '0').split(':').reduce((a, x) => a * 60 + +x, 0);
 
 if (cmd === 'search') {
   const [lo, hi] = (opt('bpm', '0-999')).split('-').map(Number), min = +opt('min', 45);
@@ -36,10 +36,10 @@ if (cmd === 'search') {
   const [title, dir] = words; if (!title || !dir) { console.error('usage: music.mjs get "<title>" <filmDir>'); process.exit(1); }
   const p = (await catalogue()).find(x => x.title.toLowerCase() === title.toLowerCase());
   if (!p) { console.error('not in catalogue: ' + title); process.exit(1); }
-  const r = await fetch(BASE + 'mp3-royaltyfree/' + encodeURIComponent(p.filename)); if (!r.ok) { console.error('download failed: ' + r.status); process.exit(1); }
+  const r = await fetch(BASE + 'mp3-royaltyfree/' + encodeURIComponent(p.filename), { signal: AbortSignal.timeout(120000) }); if (!r.ok) { console.error('download failed: ' + r.status); process.exit(1); }
   const out = resolve(dir); mkdirSync(join(out, 'audio'), { recursive: true });
   writeFileSync(join(out, 'audio', 'source.mp3'), Buffer.from(await r.arrayBuffer()));
-  const credit = `"${p.title}" Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0 License\nhttp://creativecommons.org/licenses/by/4.0/\n`;
+  const credit = `"${p.title}" Kevin MacLeod (incompetech.com)\nLicensed under Creative Commons: By Attribution 4.0 License\nhttp://creativecommons.org/licenses/by/4.0/\nCut and faded from the original for this film.\n`;
   writeFileSync(join(out, 'CREDITS.txt'), credit);
-  console.log(`${p.title}: ${p.bpm} bpm, ${p.length}, ${p.feel} -> ${join(out, 'audio', 'source.mp3')}\ncatalogue bpm ${p.bpm}: if beats.mjs measures something else (not x2 / x0.5), pass --bpm ${p.bpm}\ncredit (must ship with the film) -> CREDITS.txt`);
+  console.log(`${p.title}: ${p.bpm} bpm, ${p.length}, ${p.feel} -> ${join(out, 'audio', 'source.mp3')}\nnext: beats.mjs <track> <dir> --duration N --bpm ${p.bpm}   (always pass the catalogue bpm)\ncredit (must ship with the film) -> CREDITS.txt`);
 } else { console.error('usage: music.mjs search <words...> [--bpm lo-hi] [--min s] | get "<title>" <filmDir>'); process.exit(1); }

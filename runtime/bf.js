@@ -59,6 +59,16 @@
     const energy = time => m.energy[clamp(idx(time), 0, m.energy.length - 1)] ?? 0;
     return { ...m, t, bar, idx, pulse, since, energy };
   }
+  // A beats.json-shaped map on a steady grid, for drafting with no analysed track (e.g. in Claude chat).
+  // grid({ bpm, bars, drop: barIndex, tail: seconds }). Energy is flat 0.5 except +0.4 from the drop bar on.
+  function grid({ bpm = 120, bars = 15, drop, tail = 1 } = {}) {
+    drop = drop ?? Math.min(4, bars - 1);
+    const beat = 60 / bpm, bar = beat * 4, out = bars * bar, duration = out + tail, has = drop < bars;
+    const bts = Array.from({ length: Math.ceil(duration / beat - 1e-6) }, (_, i) => +(i * beat).toFixed(4));
+    return { bpm, beat, bar, bars, out, duration, steady: true, beats: bts, downbeats: bts.filter((_, i) => i % 4 === 0),
+      energy: bts.map((_, i) => i / 4 >= drop ? 0.9 : 0.5), drop: has ? drop * bar : null, hits: has ? [drop * bar] : [],
+      phrases: Array.from({ length: Math.ceil(bars / 4) }, (_, i) => ({ bar: i * 4, t: i * 4 * bar, energy: i * 4 >= drop ? 0.9 : 0.5 })) };
+  }
 
   // ---- DOM helpers ----
   const $ = (s, root = document) => root.querySelector(s), $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -148,12 +158,13 @@
     const now = () => au ? au.currentTime : playing ? clock + (performance.now() - t0) / 1000 : clock;
     const draw = t => { t = clamp(t, 0, dur - 1e-6); fl.render(t, Math.floor(t * fl.fps)); sc.value = t; tt.textContent = t.toFixed(2); };
     const seek = t => { if (au) au.currentTime = t; clock = t; t0 = performance.now(); draw(t); };
-    const toggle = () => { playing = !playing; btn.textContent = playing ? '❚❚' : '▶'; if (au) playing ? au.play() : au.pause(); else { clock = now(); t0 = performance.now(); } if (playing && now() >= dur - 0.05) seek(0); };
+    // silent player: read the clock BEFORE flipping state, or play jumps ahead by the time since the last toggle
+    const toggle = () => { if (!au) { clock = now(); t0 = performance.now(); } playing = !playing; btn.textContent = playing ? '❚❚' : '▶'; if (au) playing ? au.play() : au.pause(); if (playing && now() >= dur - 0.05) seek(0); };
     btn.onclick = toggle; sc.oninput = () => seek(+sc.value);
     addEventListener('keydown', e => { if (e.code === 'Space') { e.preventDefault(); toggle(); } });
     (function loop() { if (playing) { const t = now(); if (t >= dur) { toggle(); seek(dur - 1e-6); } else draw(t); } requestAnimationFrame(loop); })();
     draw(0);
   }
 
-  window.BF = { clamp, lerp, invlerp, map, ease, kf, hash, rng, noise, shake, beats, $, $$, tf, set, split, mblur, grain, fmt, film };
+  window.BF = { clamp, lerp, invlerp, map, ease, kf, hash, rng, noise, shake, beats, grid, $, $$, tf, set, split, mblur, grain, fmt, film };
 })();
